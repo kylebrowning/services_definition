@@ -1,0 +1,95 @@
+<?php
+
+/**
+ * Implementation of hook_menu().
+ */
+function services_definition_menu() {
+  $base = array(
+    'access arguments' => array('administer services'),
+  );
+  $items['admin/config/services/services/%services_endpoint/definition'] = array(
+    'title'          => 'Definition',
+    'page callback'  => 'services_definition_endpoint',
+    'page arguments' => array(4),
+    'type'           => MENU_LOCAL_TASK,
+  ) + $base;
+  $items['admin/config/services/services/%services_endpoint/definition/%/%'] = array(
+    'title'          => 'Definition',
+    'page callback'  => 'services_definition_define',
+    'page arguments' => array(4, 6, 7),
+    'type'           => MENU_CALLBACK,
+  ) + $base;
+  return $items;
+}
+
+function services_definition_define($endpoint, $resource_name, $method) {
+  $resource_definition_function = '_'. $resource_name .'_resource_definition';
+  module_load_include('resource_build.inc', 'services');
+  _services_core_resources();
+
+  if(function_exists($resource_definition_function)) {
+    $resource_definition = $resource_definition_function();
+  }
+  if(isset($resource_definition[$resource_name][$method])) {
+   debug($resource_definition[$resource_name][$method], 1);
+  } else if(isset($resource_definition[$resource_name]['actions'][$method])) {
+    debug($resource_definition[$resource_name]['actions'][$method], 1);
+  }else if(isset($resource_definition[$resource_name]['relationships'][$method])) {
+    debug($resource_definition[$resource_name]['actions'][$method], 1);
+  }
+  return '';
+}
+function services_definition_endpoint($endpoint) {
+  if (!is_object($endpoint)) {
+    $endpoint = services_endpoint_load($endpoint);
+  }
+  if(!count($endpoint->resources)) {
+    drupal_set_message('You have no resources enabled', 'error');
+    return '';
+  } else {
+    drupal_set_message('This is only a list of ENABLED resources and methods.');
+  }
+  foreach($endpoint->resources as $key=>$resource) {
+    $header = array(
+      'data' => $key
+    );
+    $headers[] = $header;
+  }
+  foreach($endpoint->resources as $key=>$resource) {
+    $row = array();
+    $opcell = array();
+    if(isset($resource['operations']))
+    foreach($resource['operations'] as $opkey=> $op) {
+      $opcell[] = array('data' => $opkey, 'resource'=>$key);
+    }      
+    if(isset($resource['actions']))
+    foreach($resource['actions'] as $opkey=> $op) {
+      $opcell[] = array('data' => $opkey, 'resource'=> $key);
+    }
+    if(isset($resource['relationships']))
+    foreach($resource['relationships'] as $opkey=> $op) {
+      $opcell[] = array('data' => $opkey, 'resource'=> $key);
+    }
+    $cols[] = $opcell;
+    $countarr[] = count($opcell);
+  }
+  rsort($countarr, SORT_NUMERIC);
+  $max_action_count = $countarr[0];
+  $x=0;
+
+  for($x=0; $x<count($headers); $x++) {
+  $row = array();
+    for($i=0; $i<$max_action_count; $i++) {
+      if(isset($cols[$i][$x])) {
+        $link = 'admin/config/services/services/'. $endpoint->name .'/definition/'.$cols[$i][$x]['resource'] .'/'. $cols[$i][$x]['data'];
+        $row[]['data'] = l($cols[$i][$x]['data'], $link, array('external' => FALSE)) ;
+      } else if($i<count($headers)){
+        $row[]['data'] = '';
+      }
+    }
+    $rows[] = $row;
+  }
+
+  $output = theme('table', array('header' => $headers, 'rows' => $rows));
+  return $output;
+}
