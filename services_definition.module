@@ -50,12 +50,6 @@ function services_definition_endpoint($endpoint) {
     drupal_set_message('This is only a list of ENABLED resources and methods.');
   }
   foreach($endpoint->resources as $key=>$resource) {
-    $header = array(
-      'data' => $key
-    );
-    $headers[] = $header;
-  }
-  foreach($endpoint->resources as $key=>$resource) {
     $row = array();
     $opcell = array();
     if(isset($resource['operations']))
@@ -71,25 +65,21 @@ function services_definition_endpoint($endpoint) {
       $opcell[] = array('data' => $opkey, 'resource'=> $key);
     }
     $cols[] = $opcell;
-    $countarr[] = count($opcell);
   }
-  rsort($countarr, SORT_NUMERIC);
-  $max_action_count = $countarr[0];
-  $x=0;
-
-  for($x=0; $x<count($headers); $x++) {
-  $row = array();
-    for($i=0; $i<$max_action_count; $i++) {
-      if(isset($cols[$i][$x])) {
-        $link = 'admin/config/services/services/'. $endpoint->name .'/definition/'.$cols[$i][$x]['resource'] .'/'. $cols[$i][$x]['data'];
-        $row[]['data'] = l($cols[$i][$x]['data'], $link, array('external' => FALSE)) ;
-      } else if($i<count($headers)){
-        $row[]['data'] = '';
-      }
+  
+  foreach($cols as $column) {
+    $output = '<ul>';
+    foreach($column as $lineitem) {
+      $link = 'admin/config/services/services/'. $endpoint->name .'/definition/'.$lineitem['resource'] .'/'. $lineitem['data'];
+      $output .= '<li>'.  l($lineitem['data'], $link, array('external' => FALSE)) .'</li>';
     }
-    $rows[] = $row;
-  }
+    $output .= '</ul>';
+    $row[]= array('data'=>array($column[0]['resource'], $output), 'class' =>array('services-definition'));
+  } 
+  $rows[] = $row;
 
-  $output = theme('table', array('header' => $headers, 'rows' => $rows));
+
+  $headers = array('resource', 'method');
+  $output = theme('table', array('header' => $headers, 'rows' => $row));
   return $output;
 }
